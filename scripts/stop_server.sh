@@ -1,5 +1,3 @@
 #!/bin/bash
-
-pkill dotnet || true
-
+systemctl stop agenticpitstop 2>/dev/null || true
 exit 0
