@@ -1,13 +1,10 @@
 version: 0.0
  
 os: linux
- 
+file_exists_behavior: OVERWRITE
 files:
   - source: app
     destination: /var/www/agenticpitstop
- 
-file_exists_behavior: OVERWRITE
- 
 hooks:
  ApplicationStop:
     - location: scripts/stop_server.sh
