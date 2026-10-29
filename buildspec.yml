@@ -28,17 +28,23 @@ phases:
       - echo "Solution $SLN_PATH"
       - dotnet restore "$SLN_PATH"
  
-  build:
+    build:
     commands:
-      - dotnet build "$SLN_PATH" --configuration $BUILD_CONFIGURATION
-      - mkdir -p "$CODEBUILD_SRC_DIR/TestResults"     
-      - >
-        dotnet test "$SLN_PATH"
-        --configuration $BUILD_CONFIGURATION
-        --no-build
-        --logger "trx;LogFileName=results.trx"
-        --collect:"XPlat Code Coverage"
-        --results-directory "$CODEBUILD_SRC_DIR/TestResults"
+      - dotnet build "$SLN_PATH" --configuration $BUILD_CONFIGURATION --no-restore
+      - mkdir -p "$CODEBUILD_SRC_DIR/TestResults"
+      - dotnet --list-sdks
+      - dotnet --list-runtimes
+      - cat global.json || echo "no global.json"
+      - |
+        dotnet test "$SLN_PATH" \
+          --configuration $BUILD_CONFIGURATION \
+          --no-build \
+          --logger "trx;LogFileName=results.trx" \
+          --logger "console;verbosity=detailed" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory "$CODEBUILD_SRC_DIR/TestResults" \
+          --diag "$CODEBUILD_SRC_DIR/TestResults/diag.log" \
+        || { echo "=== TESTHOST LOGS ==="; for f in "$CODEBUILD_SRC_DIR"/TestResults/diag*host*.log; do echo "--- $f"; tail -n 60 "$f"; done; exit 1; }
  
   post_build:
     commands:
