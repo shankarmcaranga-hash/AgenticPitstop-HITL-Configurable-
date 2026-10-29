@@ -1,4 +1,4 @@
-﻿version: 0.2
+version: 0.2
  
 env:
   variables:
@@ -17,28 +17,34 @@ phases:
   pre_build:
     commands:
       - pwd
-      - find . -maxdepth 3 \( -name "*.sln" -o -name "*.csproj" \) -not -path '*/.git*'
-      # Solution (first .sln found)
-      - export SLN_PATH=$(find . -maxdepth 3 -name "*.sln" | head -n 1)
-      - echo "Solution $SLN_PATH"
-      - test -n "$SLN_PATH"
+      - find . -maxdepth 5 \( -name "*.sln" -o -name "*.slnx" -o -name "*.csproj" \) -not -path '*/.git*'      
       # Web project = the csproj that uses the Web SDK (excludes test projects)
       - export APP_PROJECT=$(grep -rl --include=*.csproj 'Microsoft.NET.Sdk.Web' . | grep -vi 'test' | head -n 1)
       - echo "Web project $APP_PROJECT"
       - test -n "$APP_PROJECT"
+      # Solution: use .sln if present, otherwise fall back to the web project      
+      - export SLN_PATH=$(find . -maxdepth 5 -name "*.sln" -not -path '*/.git*' | head -n 1)
+      - if [ -z "$SLN_PATH" ]; then export SLN_PATH="$APP_PROJECT"; fi            
+      - echo "Solution $SLN_PATH"
       - dotnet restore "$SLN_PATH"
  
-  build:
+    build:
     commands:
       - dotnet build "$SLN_PATH" --configuration $BUILD_CONFIGURATION --no-restore
-      - mkdir -p "$CODEBUILD_SRC_DIR/TestResults"     
-      - >
-        dotnet test "$SLN_PATH"
-        --configuration $BUILD_CONFIGURATION
-        --no-build
-        --logger "trx;LogFileName=results.trx"
-        --collect:"XPlat Code Coverage"
-        --results-directory "$CODEBUILD_SRC_DIR/TestResults"
+      - mkdir -p "$CODEBUILD_SRC_DIR/TestResults"
+      - dotnet --list-sdks
+      - dotnet --list-runtimes
+      - cat global.json || echo "no global.json"
+      - |
+        dotnet test "$SLN_PATH" \
+          --configuration $BUILD_CONFIGURATION \
+          --no-build \
+          --logger "trx;LogFileName=results.trx" \
+          --logger "console;verbosity=detailed" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory "$CODEBUILD_SRC_DIR/TestResults" \
+          --diag "$CODEBUILD_SRC_DIR/TestResults/diag.log" \
+        || { echo "=== TESTHOST LOGS ==="; for f in "$CODEBUILD_SRC_DIR"/TestResults/diag*host*.log; do echo "--- $f"; tail -n 60 "$f"; done; exit 1; }
  
   post_build:
     commands:
