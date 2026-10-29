@@ -1,11 +1,11 @@
-﻿version: 0.2
-
+version: 0.2
+ 
 env:
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: "1"
     DOTNET_NOLOGO: "1"
     BUILD_CONFIGURATION: "Release"
-
+ 
 phases:
   install:
     runtime-versions:
@@ -13,7 +13,7 @@ phases:
     commands:
       - dotnet tool install -g dotnet-reportgenerator-globaltool
       - export PATH="$PATH:$HOME/.dotnet/tools"
-
+ 
   pre_build:
     commands:
       - pwd
@@ -27,11 +27,11 @@ phases:
       - echo "Web project $APP_PROJECT"
       - test -n "$APP_PROJECT"
       - dotnet restore "$SLN_PATH"
-
+ 
   build:
     commands:
       - dotnet build "$SLN_PATH" --configuration $BUILD_CONFIGURATION --no-restore
-      -  mkdir -p "$CODEBUILD_SRC_DIR/TestResults"
+      - mkdir -p "$CODEBUILD_SRC_DIR/TestResults"     
       - >
         dotnet test "$SLN_PATH"
         --configuration $BUILD_CONFIGURATION
@@ -39,7 +39,7 @@ phases:
         --logger "trx;LogFileName=results.trx"
         --collect:"XPlat Code Coverage"
         --results-directory "$CODEBUILD_SRC_DIR/TestResults"
-
+ 
   post_build:
     commands:
       - export PATH="$PATH:$HOME/.dotnet/tools"
@@ -64,8 +64,10 @@ phases:
         --output "$CODEBUILD_SRC_DIR/artifacts-out/app"
       - cp "$CODEBUILD_SRC_DIR/appspec.yml" "$CODEBUILD_SRC_DIR/artifacts-out/"
       - cp -r "$CODEBUILD_SRC_DIR/scripts" "$CODEBUILD_SRC_DIR/artifacts-out/scripts"
+      - sed -i 's/\r$//' "$CODEBUILD_SRC_DIR"/artifacts-out/scripts/*.sh   
+      - chmod +x "$CODEBUILD_SRC_DIR"/artifacts-out/scripts/*.sh          
       - cp -r "$CODEBUILD_SRC_DIR/CoverageReport" "$CODEBUILD_SRC_DIR/artifacts-out/coverage-html"
-
+ 
 reports:
   test-results:
     files:
@@ -77,13 +79,13 @@ reports:
       - '**/coverage.cobertura.xml'
     base-directory: TestResults
     file-format: CoberturaXml
-
+ 
 artifacts:
   files:
     - '**/*'
   base-directory: artifacts-out
   name: agenticpitstop-build
-
+ 
 cache:
   paths:
     - '/root/.nuget/packages/**/*'
